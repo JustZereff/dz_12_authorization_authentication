@@ -1,11 +1,15 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Path
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.routes import contacts
+from src.routes import contacts, auth
 from src.database.db import get_db
 
 app = FastAPI()
+
+
+app.include_router(auth.router, prefix='/api')
 app.include_router(contacts.router, prefix='/api')
 
 @app.get("/api/healthchecker")

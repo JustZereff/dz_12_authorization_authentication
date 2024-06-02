@@ -3,6 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.repository import contacts as repositories_contact
 from src.database.db import get_db
 from src.schemas.contact import ContactInput, ContactOutput
+from src.entity.models import User
+from src.services.auth import auth_service
 
 router = APIRouter(prefix='/contacts', tags=['contact'])
 
@@ -13,7 +15,7 @@ async def get_contacts(limit: int = Query(default=10, ge=10, le=500), offset: in
 
 @router.get(path='/id/{contact_id}', response_model=ContactOutput)
 async def get_contacts_by_id(contact_id: int, db: AsyncSession = Depends(get_db)):
-    contact = await repositories_contact.get_contacts_by_id(contact_id, db)
+    contact = await repositories_contact.get_contact_by_id(contact_id, db)
     if contact is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Not found!')
     return contact
@@ -34,28 +36,28 @@ async def get_contacts_by_last_name(last_name: str, db: AsyncSession = Depends(g
 
 @router.get(path='/email/{email}', response_model=ContactOutput)
 async def get_contacts_by_email(email: str, db: AsyncSession = Depends(get_db)):
-    contact = await repositories_contact.get_contacts_by_email(email, db)
+    contact = await repositories_contact.get_contact_by_email(email, db)
     if contact is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Not found!')
     return contact
 
-@router.post(path='/', response_model=ContactOutput, status_code=status.HTTP_201_CREATED)
-async def create_contacts(body: ContactInput, db: AsyncSession = Depends(get_db)):
-    contact = await repositories_contact.create_contacts(body, db)
+@router.post('/', response_model=ContactOutput, status_code=status.HTTP_201_CREATED)
+async def create_contact(body: ContactInput, db: AsyncSession = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
+    contact = await repositories_contact.create_contact(body, current_user.id, db)
     return contact
 
-@router.put(path='/id/{contact_id}', response_model=ContactOutput)
-async def update_contacts(contact_id: int, body: ContactInput, db: AsyncSession = Depends(get_db)):
-    contact = await repositories_contact.update_contacts(contact_id, body, db)
+@router.put('/id/{contact_id}', response_model=ContactOutput)
+async def update_contact(contact_id: int, body: ContactInput, db: AsyncSession = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
+    contact = await repositories_contact.update_contact(contact_id, body, current_user.id, db)
     if contact is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Not found!')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Not found or not authorized!')
     return contact
 
-@router.delete(path='/id/{contact_id}', status_code=status.HTTP_204_NO_CONTENT)
-async def delete_contacts(contact_id: int, db: AsyncSession = Depends(get_db)):
-    contact = await repositories_contact.delete_contacts(contact_id, db)
+@router.delete('/id/{contact_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_contact(contact_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(auth_service.get_current_user)):
+    contact = await repositories_contact.delete_contact(contact_id, current_user.id, db)
     if contact is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Not found!')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Not found or not authorized!')
     return {"detail": "Contact deleted successfully"}
 
 @router.get(path='/birthday/next_week', response_model=list[ContactOutput])
